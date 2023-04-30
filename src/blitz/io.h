@@ -9,24 +9,35 @@ namespace blitz {
 
 struct instruction {
     int id;
-    size_t n;
+    size_t number;
+    
+    size_t line;
+    size_t character;
 
     instruction(){}
-    instruction(int id, size_t n) : id(id), n(n) {}
+    instruction(int id, size_t number, size_t line, size_t character) : id(id), number(number), line(line), character(character) {}
 };
 
 class inputfile {
     private:
         FILE *file;
+
         std::stack<instruction> reflow;
+
+        size_t line;
+        size_t character;
     
     public:
+        const char* name;
+        
         inputfile(const inputfile&) = delete;
-        inputfile(FILE *file) : file(file) {}
+        inputfile(FILE *file, const char* name) : file(file), name(name), line(1), character(0) {}
         ~inputfile(){ fclose(file); }
         
         instruction read(){
             #define is_instruction_id(c) (c == '+' | c == '-' | c == '>' | c == '<' | c == '[' | c == ']' | c == '.' | c == ',' | c == EOF)
+            #define update_position(c) line += (c == '\n'); character = (character + 1) * (c != '\n')
+
             if(!reflow.empty()){
                 instruction ret = reflow.top();
                 reflow.pop();
@@ -35,9 +46,10 @@ class inputfile {
             int id;
             do {
                 id = fgetc(file);
+                update_position(id);
             } while(!is_instruction_id(id));
             if(id == EOF){
-                return instruction(EOF, 0);
+                return instruction(EOF, 0, line, character);
             }
             size_t n = 1;
             int c;
@@ -47,9 +59,11 @@ class inputfile {
                     if(c != id){ break; }
                     ++n;
                 }
+                update_position(c);
             } while(true);
             ungetc(c, file);
-            return instruction(id, n);
+            return instruction(id, n, line, character);
+            #undef update_position
             #undef is_instruction_id
         }
 
@@ -63,8 +77,10 @@ class outputfile {
         FILE *file;
 
     public:
+        const char* name;
+        
         outputfile(const outputfile&) = delete;
-        outputfile(FILE *file) : file(file) {}
+        outputfile(FILE *file, const char* name) : file(file), name(name) {}
         ~outputfile(){ fclose(file); }
 
         int writes(const char* string){

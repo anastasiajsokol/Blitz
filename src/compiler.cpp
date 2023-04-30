@@ -19,6 +19,10 @@ struct brackets {
     stack.pop();
     return ret;
   }
+
+  size_t size(){
+    return stack.size();
+  }
 };
 
 void compile(blitz::inputfile input, blitz::outputfile output){
@@ -53,30 +57,33 @@ void compile(blitz::inputfile input, blitz::outputfile output){
   while((inst = input.read()).id != EOF){
     switch(inst.id){
       case '+':
-        output.format_write_line(ident, "add byte [rbp + rbx], %ld", inst.n);        
+        output.format_write_line(ident, "add byte [rbp + rbx], %ld", inst.number);        
         break;
 
       case '-':
-        output.format_write_line(ident, "sub byte [rbp + rbx], %ld", inst.n);
+        output.format_write_line(ident, "sub byte [rbp + rbx], %ld", inst.number);
         break;
 
       case '>':
-        output.format_write_line(ident, "add rbx, %ld", inst.n); 
+        output.format_write_line(ident, "add rbx, %ld", inst.number); 
         break;
            
       case '<':
-        output.format_write_line(ident, "sub rbx, %ld", inst.n); 
+        output.format_write_line(ident, "sub rbx, %ld", inst.number); 
         break;
 
       case '[':
-        while(inst.n--){
+        while(inst.number--){
           output.format_write_line(ident, ".bracket_%ld:", jump_stack.reserve());
           ++ident;
         }
         break;
         
       case ']':
-        while(inst.n--){
+        if(jump_stack.size() < inst.number){
+          blitz::compile_error("Unmatched bracket", input.name, inst.line, inst.character);
+        }
+        while(inst.number--){
           output.format_write_line(ident, "cmp byte [rbp + rbx], 0");
           output.format_write_line(ident, "jnz .bracket_%ld", jump_stack.pop());
           --ident;
@@ -84,7 +91,7 @@ void compile(blitz::inputfile input, blitz::outputfile output){
         break;
 
       case '.':
-        while(inst.n--){
+        while(inst.number--){
           output.format_write_line(ident, "xor rdi, rdi");
           output.format_write_line(ident, "mov dil, byte [rbp + rbx]");
           output.format_write_line(ident, "call putchar");
@@ -92,7 +99,7 @@ void compile(blitz::inputfile input, blitz::outputfile output){
         break;
 
       case ',':
-        while(inst.n--){
+        while(inst.number--){
           output.format_write_line(ident, "call getchar");
         }
         output.format_write_line(ident, "mov byte [rbp + rbx], ax");
@@ -118,7 +125,7 @@ int main(int argc, char *argv[]){
         blitz::error("Unable to open provided output file %s for writing\n", argv[2]);
     }
 
-    compile(input, output);
+    compile(blitz::inputfile(input, argv[1]), blitz::outputfile(output, argv[2]));
 
     return 0;
 }
