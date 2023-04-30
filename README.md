@@ -5,7 +5,6 @@
 - Takes input file to a bf program, and an output file to write intel x64 assembler
 - Unmatched closing bracket detection (unmatched opening brackets fail on assembly, but not compilation)
 - Most able to report error locations
-- Uses combination optimization
 - Only allocates 1kb max memory
 
 ## End Goal
