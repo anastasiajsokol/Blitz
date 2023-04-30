@@ -3,7 +3,7 @@
 ## Current Development | Compiler v0.1
 
 - Takes input file to a bf program, and an output file to write intel x64 assembler
-- requires a 'correct' brainf*ck program, limited to no proper error handling
+- Unmatched closing bracket detection
 - uses combination optimization
 - only allocates 1kb max memory
 

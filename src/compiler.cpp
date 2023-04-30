@@ -57,7 +57,7 @@ void compile(blitz::inputfile input, blitz::outputfile output){
   while((inst = input.read()).id != EOF){
     switch(inst.id){
       case '+':
-        output.format_write_line(ident, "add byte [rbp + rbx], %ld", inst.number);        
+        output.format_write_line(ident, "add byte [rbp + rbx], %ld", inst.number);
         break;
 
       case '-':
@@ -74,8 +74,11 @@ void compile(blitz::inputfile input, blitz::outputfile output){
 
       case '[':
         while(inst.number--){
-          output.format_write_line(ident, ".bracket_%ld:", jump_stack.reserve());
+          size_t id = jump_stack.reserve();
+          output.format_write_line(ident, ".bracket_%ld:", id);
           ++ident;
+          output.format_write_line(ident, "cmp byte [rbp + rbx], 0");
+          output.format_write_line(ident, "jz .end_bracket_%ld", id);
         }
         break;
         
@@ -84,9 +87,10 @@ void compile(blitz::inputfile input, blitz::outputfile output){
           blitz::compile_error("Unmatched bracket", input.name, inst.line, inst.character);
         }
         while(inst.number--){
-          output.format_write_line(ident, "cmp byte [rbp + rbx], 0");
-          output.format_write_line(ident, "jnz .bracket_%ld", jump_stack.pop());
+          size_t id = jump_stack.pop();
+          output.format_write_line(ident, "jmp .bracket_%ld", id);
           --ident;
+          output.format_write_line(ident, ".end_bracket_%ld:", id);
         }
         break;
 
