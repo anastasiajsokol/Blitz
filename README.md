@@ -4,8 +4,8 @@
 
 - Takes input file to a bf program, and an output file to write intel x64 assembler
 - Unmatched closing bracket detection
-- uses combination optimization
-- only allocates 1kb max memory
+- Uses combination optimization
+- Only allocates 1kb max memory
 
 ## End Goal
 
@@ -35,7 +35,7 @@
 
 | Name        | Discription                                                          | Support | Future Work                                        |
 |-------------|----------------------------------------------------------------------|---------|----------------------------------------------------|
-| combination | combine operators into block operations                              | OK      | detect cancelling operations (e.g. "++-" => "+")   |
+| combination | combine operators into block operations                              | GOOD    | none                                               |
 | null        | set current cell to zero                                             | NONE    | detect pattern [-]                                 |
 | multiply    | impliment multiplication / copy pattern natively                     | NONE    | detect multiplication / copy pattern [y(x>x+)yx<-] |
 | io          | efficently handle safe input / output of c style strings             | NONE    | detect [.>] and ,[>,]                              |

@@ -36,6 +36,8 @@ class inputfile {
         
         instruction read(){
             #define is_instruction_id(c) (c == '+' | c == '-' | c == '>' | c == '<' | c == '[' | c == ']' | c == '.' | c == ',' | c == EOF)
+            #define __is_inverse(a, b) ((a == '+' & b == '-') | (a == '>' & b == '<'))
+            #define is_inverse(a, b) (__is_inverse(a, b) | __is_inverse(b, a))
             #define update_position(c) line += (c == '\n'); character = (character + 1) * (c != '\n')
 
             if(!reflow.empty()){
@@ -43,27 +45,43 @@ class inputfile {
                 reflow.pop();
                 return ret;
             }
+            
             int id;
             do {
                 id = fgetc(file);
                 update_position(id);
             } while(!is_instruction_id(id));
+            
             if(id == EOF){
                 return instruction(EOF, 0, line, character);
             }
+            
             size_t n = 1;
+            
             int c;
             do {
                 c = fgetc(file);
                 if(is_instruction_id(c)){
-                    if(c != id){ break; }
-                    ++n;
+                    if(c != id){
+                        if(is_inverse(id, c)){
+                            --n;
+                        } else {
+                            break;
+                        }
+                    } else {
+                        ++n;
+                    }
                 }
                 update_position(c);
             } while(true);
+            
             ungetc(c, file);
+            
             return instruction(id, n, line, character);
+            
             #undef update_position
+            #undef is_inverse
+            #undef __is_inverse
             #undef is_instruction_id
         }
 
