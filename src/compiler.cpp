@@ -1,5 +1,6 @@
 #include <stack>
 
+#include "blitz/optimizer.h"
 #include "blitz/error.h"
 #include "blitz/io.h"
 
@@ -49,65 +50,74 @@ void compile(blitz::inputfile input, blitz::outputfile output){
     "mem: resb 1024\n";
   
   output.writes(header);
+  
+  blitz::optimizer instructions(input);
 
   brackets jump_stack;
   size_t ident = 1;
 
-  blitz::instruction inst; 
-  while((inst = input.read()).id != EOF){
-    switch(inst.id){
-      case '+':
-        output.format_write_line(ident, "add byte [rbp + rbx], %ld", inst.number);
+  blitz::xinstruction inst;
+  while((inst = instructions.read()).type != blitz::end){
+    switch(inst.type){
+      case blitz::add:
+        output.format_write_line(ident, "add byte [rbp + rbx], %ld", inst.modifier);
+        break;
+      
+      case blitz::sub:
+        output.format_write_line(ident, "sub byte [rbp + rbx], %ld", inst.modifier);
         break;
 
-      case '-':
-        output.format_write_line(ident, "sub byte [rbp + rbx], %ld", inst.number);
-        break;
-
-      case '>':
-        output.format_write_line(ident, "add rbx, %ld", inst.number); 
+      case blitz::shiftr:
+        output.format_write_line(ident, "add rbx, %ld", inst.modifier); 
         break;
            
-      case '<':
-        output.format_write_line(ident, "sub rbx, %ld", inst.number); 
+      case blitz::shiftl:
+        output.format_write_line(ident, "sub rbx, %ld", inst.modifier); 
         break;
 
-      case '[':
-        while(inst.number--){
+      case blitz::open:
+        while(inst.modifier--){
           size_t id = jump_stack.reserve();
+          output.format_write_line(ident, "jmp .end_bracket_%ld", id);
           output.format_write_line(ident, ".bracket_%ld:", id);
           ++ident;
-          output.format_write_line(ident, "cmp byte [rbp + rbx], 0");
-          output.format_write_line(ident, "jz .end_bracket_%ld", id);
         }
         break;
         
-      case ']':
-        if(jump_stack.size() < inst.number){
-          blitz::compile_error("Unmatched bracket", input.name, inst.line, inst.character);
+      case blitz::close:
+        if(jump_stack.size() < inst.modifier){
+          blitz::compile_error("Unmatched bracket", input.name, inst.pos.line, inst.pos.character);
         }
-        while(inst.number--){
+        while(inst.modifier--){
           size_t id = jump_stack.pop();
-          output.format_write_line(ident, "jmp .bracket_%ld", id);
+          output.format_write_line(ident - 1, ".end_bracket_%ld:", id);
+          output.format_write_line(ident, "cmp byte [rbp + rbx], 0");
+          output.format_write_line(ident, "jnz .bracket_%ld", id);
           --ident;
-          output.format_write_line(ident, ".end_bracket_%ld:", id);
         }
         break;
-
-      case '.':
-        while(inst.number--){
+      
+      case blitz::out:
+        while(inst.modifier--){
           output.format_write_line(ident, "xor rdi, rdi");
           output.format_write_line(ident, "mov dil, byte [rbp + rbx]");
           output.format_write_line(ident, "call putchar");
         }
         break;
 
-      case ',':
-        while(inst.number--){
+      case blitz::in:
+        while(inst.modifier--){
           output.format_write_line(ident, "call getchar");
         }
         output.format_write_line(ident, "mov byte [rbp + rbx], ax");
         break;
+      
+      case blitz::set:
+        output.format_write_line(ident, "mov byte [rbp + rbx], %ld", inst.modifier);
+        break;
+        
+      [[unlikely]] default:
+        blitz::compile_error("Unsupported instruction passed to decoder from optimizer", input.name, inst.pos.line, inst.pos.character);
     }
   }
 

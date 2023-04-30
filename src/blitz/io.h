@@ -7,15 +7,21 @@
 
 namespace blitz {
 
+struct fpos {
+    size_t line;
+    size_t character;
+};
+
 struct instruction {
     int id;
     size_t number;
     
-    size_t line;
-    size_t character;
+    fpos pos;
 
     instruction(){}
-    instruction(int id, size_t number, size_t line, size_t character) : id(id), number(number), line(line), character(character) {}
+    instruction(int id, size_t number, size_t line, size_t character) : id(id), number(number) {
+        pos = fpos{line, character};
+    }
 };
 
 class inputfile {
@@ -26,14 +32,14 @@ class inputfile {
 
         size_t line;
         size_t character;
-    
+        
     public:
         const char* name;
         
         inputfile(const inputfile&) = delete;
         inputfile(FILE *file, const char* name) : file(file), name(name), line(1), character(0) {}
         ~inputfile(){ fclose(file); }
-        
+
         instruction read(){
             #define is_instruction_id(c) (c == '+' | c == '-' | c == '>' | c == '<' | c == '[' | c == ']' | c == '.' | c == ',' | c == EOF)
             #define __is_inverse(a, b) ((a == '+' & b == '-') | (a == '>' & b == '<'))
