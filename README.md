@@ -5,6 +5,7 @@
 - Takes input file to a bf program, and an output file to write intel x64 assembler
 - requires a 'correct' brainf*ck program, limited to no proper error handling
 - uses combination optimization
+- only allocates 1kb max memory
 
 ## End Goal
 

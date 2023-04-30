@@ -42,7 +42,7 @@ void compile(blitz::inputfile input, blitz::outputfile output){
     "\tmov rax, 60\n"
     "\tsyscall\n"
     "section .bss\n"
-    "mem: resb 1000\n";
+    "mem: resb 1024\n";
   
   output.writes(header);
 
