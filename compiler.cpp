@@ -16,6 +16,24 @@ void error(const char* error, ...){
   exit(1);
 }
 
+struct brackets {
+  size_t id;
+  std::stack<size_t> stack;
+
+  brackets() : id(0) {}
+
+  size_t reserve(){
+    stack.push(id + 1);
+    return ++id;
+  }
+
+  size_t pop(){
+    size_t ret = stack.top();
+    stack.pop();
+    return ret;
+  }
+};
+
 struct instruction {
   char id;
   size_t n;
@@ -52,72 +70,86 @@ instruction read_from_file(FILE *input){
 void compile(FILE *input, FILE *output){
   const char* header =
     "[bits 64]\n"
-    "global main\n"    // prefer '_start' when c standard libraries are not needed
+    "global _start\n"
     "section .text\n"
     "extern putchar\n" // replace later with proper port handling, maybe
     "extern getchar\n" // replace later with proper port handling, maybe
-    "main:\n"          // prefer '_start' when c standard libraries are not needed
+    "extern fflush\n"  // replace later with proper port handling, maybe
+    "_start:\n"
     "\txor rsi, rsi\n"
     "\tmov rdx, mem\n";
   
   const char* footer =
-    "\tmov rax, 60\n"
     "\txor rdi, rdi\n"
-    "\tmov dil, [rdx + rsi]\n"
+    "\tmov dil, byte [rdx + rsi]\n"
+    "\tpush rdi\n"
+    "\tcall fflush\n"
+    "\tpop rdi\n"
+    "\tmov rax, 60\n"
     "\tsyscall\n"
     "section .bss\n"
     "mem: resb 1000\n";
   
   fputs(header, output);
   
-  size_t jump_stack = 0;
-  
+  brackets jump_stack;
+  size_t ident = 1;
+
   instruction inst; 
   while((inst = read_from_file(input)).id != EOF){
     switch(inst.id){
       case '+':
-        format_write(output, jump_stack + 1, "add byte [rdx + rsi], %ld", inst.n);        
+        format_write(output, ident, "add byte [rdx + rsi], %ld", inst.n);        
         break;
 
       case '-':
-        format_write(output, jump_stack + 1, "sub byte [rdx + rsi], %ld", inst.n);
+        format_write(output, ident, "sub byte [rdx + rsi], %ld", inst.n);
         break;
 
       case '>':
-        format_write(output, jump_stack + 1, "add rsi, %ld", inst.n); 
+        format_write(output, ident, "add rsi, %ld", inst.n); 
         break;
            
       case '<':
-        format_write(output, jump_stack + 1, "sub rsi, %ld", inst.n); 
+        format_write(output, ident, "sub rsi, %ld", inst.n); 
         break;
 
       case '[':
         while(inst.n--){
-          ++jump_stack;
-          format_write(output, jump_stack + 0, ".bracket_%ld:", jump_stack);
+          format_write(output, ident, ".bracket_%ld:", jump_stack.reserve());
+          ++ident;
         }
         break;
         
       case ']':
         while(inst.n--){
-          format_write(output, jump_stack + 1, "cmp byte [rdx + rsi], 0");
-          format_write(output, jump_stack + 1, "jz .bracket_%ld", jump_stack);
-          --jump_stack;
+          format_write(output, ident, "cmp byte [rdx + rsi], 0");
+          format_write(output, ident, "jnz .bracket_%ld", jump_stack.pop());
+          --ident;
         }
         break;
 
       case '.':
-        format_write(output, jump_stack + 1, "mov rax, [rdx + rsi]");
         while(inst.n--){
-          format_write(output, jump_stack + 1, "call putchar");
+          format_write(output, ident, "xor rdi, rdi");
+          format_write(output, ident, "mov dil, byte [rdx + rsi]");
+          format_write(output, ident, "push rdx");
+          format_write(output, ident, "push rsi");
+          format_write(output, ident, "call putchar");
+          format_write(output, ident, "pop rsi");
+          format_write(output, ident, "pop rdx");
         }
         break;
 
       case ',':
+        format_write(output, ident, "push rdx");
+        format_write(output, ident, "push rsi");
         while(inst.n--){
-          format_write(output, jump_stack + 1, "call getchar");
+          format_write(output, ident, "call getchar");
         }
-        format_write(output, jump_stack + 1, "mov byte [rdx + rsi], ax");
+        format_write(output, ident, "pop rsi");
+        format_write(output, ident, "pop rdx");
+        format_write(output, ident, "mov byte [rdx + rsi], ax");
         break;
     }
   }
