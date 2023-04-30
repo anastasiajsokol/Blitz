@@ -72,19 +72,19 @@ void compile(FILE *input, FILE *output){
     "[bits 64]\n"
     "global _start\n"
     "section .text\n"
-    "extern putchar\n" // replace later with proper port handling, maybe
-    "extern getchar\n" // replace later with proper port handling, maybe
-    "extern fflush\n"  // replace later with proper port handling, maybe
+    "extern putchar\n"
+    "extern getchar\n"
+    "extern fflush\n"
+    "extern stdout\n"
     "_start:\n"
-    "\txor rsi, rsi\n"
-    "\tmov rdx, mem\n";
+    "\txor rbx, rbx\n"  // use rbx for offset as it is callee saved
+    "\tmov rbp, mem\n"; // use rbp for base as it is callee saved
   
   const char* footer =
-    "\txor rdi, rdi\n"
-    "\tmov dil, byte [rdx + rsi]\n"
-    "\tpush rdi\n"
+    "\tmov rdi, [stdout]\n"
     "\tcall fflush\n"
-    "\tpop rdi\n"
+    "\txor rdi, rdi\n"
+    "\tmov dil, byte [rbp + rbx]\n"
     "\tmov rax, 60\n"
     "\tsyscall\n"
     "section .bss\n"
@@ -99,19 +99,19 @@ void compile(FILE *input, FILE *output){
   while((inst = read_from_file(input)).id != EOF){
     switch(inst.id){
       case '+':
-        format_write(output, ident, "add byte [rdx + rsi], %ld", inst.n);        
+        format_write(output, ident, "add byte [rbp + rbx], %ld", inst.n);        
         break;
 
       case '-':
-        format_write(output, ident, "sub byte [rdx + rsi], %ld", inst.n);
+        format_write(output, ident, "sub byte [rbp + rbx], %ld", inst.n);
         break;
 
       case '>':
-        format_write(output, ident, "add rsi, %ld", inst.n); 
+        format_write(output, ident, "add rbx, %ld", inst.n); 
         break;
            
       case '<':
-        format_write(output, ident, "sub rsi, %ld", inst.n); 
+        format_write(output, ident, "sub rbx, %ld", inst.n); 
         break;
 
       case '[':
@@ -123,7 +123,7 @@ void compile(FILE *input, FILE *output){
         
       case ']':
         while(inst.n--){
-          format_write(output, ident, "cmp byte [rdx + rsi], 0");
+          format_write(output, ident, "cmp byte [rbp + rbx], 0");
           format_write(output, ident, "jnz .bracket_%ld", jump_stack.pop());
           --ident;
         }
@@ -132,24 +132,16 @@ void compile(FILE *input, FILE *output){
       case '.':
         while(inst.n--){
           format_write(output, ident, "xor rdi, rdi");
-          format_write(output, ident, "mov dil, byte [rdx + rsi]");
-          format_write(output, ident, "push rdx");
-          format_write(output, ident, "push rsi");
+          format_write(output, ident, "mov dil, byte [rbp + rbx]");
           format_write(output, ident, "call putchar");
-          format_write(output, ident, "pop rsi");
-          format_write(output, ident, "pop rdx");
         }
         break;
 
       case ',':
-        format_write(output, ident, "push rdx");
-        format_write(output, ident, "push rsi");
         while(inst.n--){
           format_write(output, ident, "call getchar");
         }
-        format_write(output, ident, "pop rsi");
-        format_write(output, ident, "pop rdx");
-        format_write(output, ident, "mov byte [rdx + rsi], ax");
+        format_write(output, ident, "mov byte [rbp + rbx], ax");
         break;
     }
   }
