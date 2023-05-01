@@ -37,7 +37,7 @@
 |-------------|----------------------------------------------------------------------|---------|----------------------------------------------------|
 | combination | combine operators into block operations                              | GOOD    | none                                               |
 | set         | set current cell to static value                                     | GOOD    | optimize [???[-]] into 'if' style conditional      |
-| multiply    | impliment multiplication / copy pattern natively                     | NONE    | detect multiplication / copy pattern [y(x>x+)yx<-] |
+| multiply    | impliment multiplication / copy pattern natively                     | GOOD    | none                                               |
 | io          | efficently handle safe input / output of c style strings             | NONE    | detect [.>] and ,[>,]                              |
 | slide       | efficently slide along nonzero data                                  | NONE    | detect [>] and [<]                                 |
 | compare     | compare cells or memory blocks                                       | NONE    | unsure                                             |

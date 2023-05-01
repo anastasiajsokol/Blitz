@@ -1,7 +1,9 @@
 #ifndef BLITZ_OPTIMIZER
 #define BLITZ_OPTIMIZER
 
+#include <utility>
 #include <queue>
+#include <list>
 
 #include "error.h"
 #include "io.h"
@@ -25,15 +27,18 @@ enum instructionset {
 
     // optimization extensions
     set,
+    addmul,
 };
 
 struct xinstruction {
     instructionset type;
     size_t modifier;
+    size_t offset;
     fpos pos;
-    
-    xinstruction() : type(invalid), modifier(0), pos(fpos{0, 0}) {}
-    xinstruction(instructionset type, size_t modifier, fpos pos) : type(type), modifier(modifier), pos(pos) {} 
+
+    xinstruction() : type(invalid), pos(fpos{0, 0}), modifier(0) {}
+    xinstruction(instructionset type, size_t modifier, fpos pos) : type(type), pos(pos), modifier(modifier), offset(0) {}
+    xinstruction(instructionset type, size_t modifier, size_t offset, fpos pos) : type(type), pos(pos), modifier(modifier), offset(offset) {}
 };
 
 class optimizer {
@@ -55,10 +60,10 @@ class optimizer {
 
             switch(base.id){
                 case '+':
-                    return xinstruction(add, base.number, base.pos);
+                    return xinstruction(add, base.number % 256, base.pos);
                 
                 case '-':
-                    return xinstruction(sub, base.number, base.pos);
+                    return xinstruction(sub, base.number % 256, base.pos);
                 
                 case '>':
                     return xinstruction(shiftr, base.number, base.pos);
@@ -95,6 +100,67 @@ class optimizer {
                                 // could be used to create an 'if' statement, but for now do not optimize
                                 wait.push(xinstruction(close, last.number - base.number, last.pos));
                                 return xinstruction(set, 0, next.pos);
+                            }
+                        }
+                        
+                        if((next.id == '>' || next.id == '<') && last.id == '+'){
+                            char go = next.id;
+                            char back = (go == '>') ? '<' : '>';
+                            
+                            std::list<std::pair<instruction, instruction>> instructions;
+
+                            size_t n = next.number;
+
+                            instruction a, b;
+                            while(true){
+                                a = input.read();
+
+                                if(a.id != go){
+                                    if(a.id == back && a.number == n){
+                                        b = input.read();
+
+                                        if(b.id == '-' && b.number == 1){
+                                            instruction ending = input.read();
+
+                                            if(ending.id == ']'){ // addmul pattern
+                                                size_t i = next.number;
+                                                for(auto revit = instructions.rbegin(); revit != instructions.rend(); ++revit){
+                                                    i += revit->first.number;
+                                                    wait.push(xinstruction(addmul, revit->second.number, i, revit->second.pos));
+                                                }
+                                                wait.push(xinstruction(set, 0, instructions.back().second.pos));
+                                                return xinstruction(addmul, last.number, next.number, last.pos);
+                                            }
+
+                                            input.unread(ending);
+                                        }
+
+                                        input.unread(b);
+                                    }
+
+                                    input.unread(a);
+
+                                    for(auto& x : instructions){
+                                        input.unread(x.second);
+                                        input.unread(x.first);
+                                    }
+                                    break;
+                                }
+
+                                b = input.read();
+
+                                if(b.id != '+'){
+                                    input.unread(b);
+                                    input.unread(a);
+                                    for(auto& x : instructions){
+                                        input.unread(x.second);
+                                        input.unread(x.first);
+                                    }
+                                    break;
+                                }
+
+                                n += a.number;
+                                instructions.push_front({a, b});
                             }
                         }
 

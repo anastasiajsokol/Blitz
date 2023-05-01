@@ -115,6 +115,18 @@ void compile(blitz::inputfile input, blitz::outputfile output){
       case blitz::set:
         output.format_write_line(ident, "mov byte [rbp + rbx], %ld", inst.modifier);
         break;
+      
+      case blitz::addmul:
+        if(inst.modifier == 1){
+          output.format_write_line(ident, "mov al, byte [rbp + rbx]", inst.offset);
+          output.format_write_line(ident, "add byte [rbp + rbx + %ld], al", inst.offset);
+        } else {
+          output.format_write_line(ident, "mov al, byte [rbp + rbx]", inst.offset);
+          output.format_write_line(ident, "mov dl, %ld", inst.modifier % 256);
+          output.format_write_line(ident, "mul dl");
+          output.format_write_line(ident, "add byte [rbp + rbx + %ld], al", inst.offset);
+        }
+        break;
         
       [[unlikely]] default:
         blitz::compile_error("Unsupported instruction passed to decoder from optimizer", input.name, inst.pos.line, inst.pos.character);
